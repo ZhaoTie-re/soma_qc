@@ -55,3 +55,29 @@ process phom_adat {
     """
 }
 
+naga_qc_out_ch
+    .map { name, path -> path }
+    .reduce { a, b -> [a, b] }
+    .map { paths -> ["NAGA"].plus(paths) }
+    .set { naga_merge_ch }
+
+process merge_naga_qc {
+
+    tag "${group_name}"
+
+    conda '/Users/tie_zhao/miniconda3'
+    publishDir "${params.result_dir}/02.merged_naga", mode: 'symlink'
+
+    input:
+    tuple val(group_name), path(naga_qc_rds_1), path(naga_qc_rds_2) from naga_merge_ch
+
+    output:
+    tuple val(group_name), file(merged_rds) 
+
+    script:
+    merged_rds = "${group_name}.qc.merge.rds"
+    """
+    Rscript ${params.script}/merge_rds.r -r ${naga_qc_rds_1} -s ${naga_qc_rds_2} -o ${group_name}
+    """
+}
+
