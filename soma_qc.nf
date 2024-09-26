@@ -72,7 +72,7 @@ process merge_naga_qc {
     tuple val(group_name), path(naga_qc_rds_1), path(naga_qc_rds_2) from naga_merge_ch
 
     output:
-    tuple val(group_name), file(merged_rds) 
+    tuple val(group_name), file(merged_rds) into naga_out_ch
 
     script:
     merged_rds = "${group_name}.qc.merge.rds"
@@ -110,3 +110,40 @@ process phom_day0_selection {
     Rscript ${params.script}/rds_day0.r -r ${rds_file} -o ${group_name}
     """
 }
+
+naga_out_ch
+    .combine(phom_day0_out_ch)
+    .map { item -> ['PHOMday0_vs_NAGA', item[3], item[1]] }
+    .set {phom_day0_vs_naga_in_ch}
+
+process phom_day0_vs_naga {
+    
+    tag "${group_name}"
+    
+    conda '/Users/tie_zhao/miniconda3'
+    publishDir "${params.result_dir}/04.phom_day0_vs_naga", mode: 'symlink'
+    
+    input:
+    tuple val(group_name), path(phom_day0_rds), path(naga_rds) from phom_day0_vs_naga_in_ch
+    
+    output:
+    tuple val(group_name), file(phom_day0_vs_naga_rds) into phom_day0_vs_naga_out_ch
+    file(phom_day0_vs_naga_ex_csv)
+    file(phom_day0_vs_naga_apt_csv)
+    
+    script:
+    phom_day0_vs_naga_rds = "${group_name}.qc.merge.rds"
+    phom_day0_vs_naga_ex_csv = "${group_name}.ex.csv"
+    phom_day0_vs_naga_apt_csv = "${group_name}.apt.csv"
+    """
+    Rscript ${params.script}/merge_rds.r -r ${phom_day0_rds} -s ${naga_rds} -o ${group_name}
+    Rscript -e '
+    data <- readRDS("${phom_day0_vs_naga_rds}")
+    write.csv(data[[1]], "${group_name}.ex.csv", row.names = TRUE, col.names = TRUE)
+    write.csv(data[[2]], "${group_name}.apt.csv", row.names = FALSE, col.names = TRUE)
+    '
+    """
+}
+
+phom_day0_vs_naga_out_ch
+    .view()

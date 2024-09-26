@@ -14,7 +14,7 @@ opt_parser <-  OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 output_file <- paste0(opt$output, ".qc.day0.rds")
 
-ex_df_csv <- paste0(opt$output, ".qc.day0.csv")
+ex_df_csv <- paste0(opt$output, ".ex.day0.csv")
 apt_df_csv <- paste0(opt$output, ".apt.day0.csv")
 
 # %%
