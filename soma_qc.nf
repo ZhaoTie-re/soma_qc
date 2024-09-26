@@ -81,3 +81,32 @@ process merge_naga_qc {
     """
 }
 
+phom_qc_out_ch
+    .filter { it[0].contains('SS-229363') }
+    .map { item -> ["PHOM", item[1]]}
+    .set {phom_day0_in_ch}
+
+
+process phom_day0_selection {
+
+    tag "${group_name}:Day0"
+
+    conda '/Users/tie_zhao/miniconda3'
+    publishDir "${params.result_dir}/03.phom_day0", mode: 'symlink'
+
+    input:
+    tuple val(group_name), path(rds_file) from phom_day0_in_ch
+
+    output:
+    tuple val(group_name), file(phom_day0_rds) into phom_day0_out_ch
+    file(phom_ex_csv)
+    file(phom_apt_csv)
+
+    script:
+    phom_day0_rds = "${group_name}.qc.day0.rds"
+    phom_ex_csv = "${group_name}.qc.day0.csv"
+    phom_apt_csv = "${group_name}.apt.day0.csv"
+    """
+    Rscript ${params.script}/rds_day0.r -r ${rds_file} -o ${group_name}
+    """
+}
