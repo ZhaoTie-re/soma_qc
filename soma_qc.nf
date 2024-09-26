@@ -5,6 +5,7 @@ params.naga_dir = '/Users/tie_zhao/Desktop/Soma_QC_re/DataSrc/NAGA'
 params.phom_dir = '/Users/tie_zhao/Desktop/Soma_QC_re/DataSrc/PHOM'
 params.result_dir = '/Users/tie_zhao/Desktop/Soma_QC_re/Results'
 params.script = '/Users/tie_zhao/Desktop/Soma_QC_re/Scripts'
+params.adat_summary = '/Users/tie_zhao/Desktop/Soma_QC_re/DataSrc/adat_summary.xlsx'
 
 Channel
     .fromFilePairs("${params.naga_dir}/*.{adat,sample}", size: 2, flat: true)
@@ -104,10 +105,17 @@ process phom_day0_selection {
 
     script:
     phom_day0_rds = "${group_name}.qc.day0.rds"
-    phom_ex_csv = "${group_name}.qc.day0.csv"
+    phom_ex_csv = "${group_name}.ex.day0.csv"
     phom_apt_csv = "${group_name}.apt.day0.csv"
     """
     Rscript ${params.script}/rds_day0.r -r ${rds_file} -o ${group_name}
+
+    Rscript -e '
+    data <- readRDS("${phom_day0_rds}")
+    data[[1]] <- data[[1]][!grepl("QC", rownames(data[[1]])), ]
+    write.csv(data[[1]], "${group_name}.ex.day0.csv", row.names = TRUE, col.names = TRUE)
+    write.csv(data[[2]], "${group_name}.apt.day0.csv", row.names = FALSE, col.names = TRUE)
+    '
     """
 }
 
@@ -125,25 +133,31 @@ process phom_day0_vs_naga {
     
     input:
     tuple val(group_name), path(phom_day0_rds), path(naga_rds) from phom_day0_vs_naga_in_ch
-    
+    path(adat_summary) from params.adat_summary
+
     output:
     tuple val(group_name), file(phom_day0_vs_naga_rds) into phom_day0_vs_naga_out_ch
     file(phom_day0_vs_naga_ex_csv)
     file(phom_day0_vs_naga_apt_csv)
+    file(phom_day0_vs_naga_qc_plot)
     
     script:
     phom_day0_vs_naga_rds = "${group_name}.qc.merge.rds"
     phom_day0_vs_naga_ex_csv = "${group_name}.ex.csv"
     phom_day0_vs_naga_apt_csv = "${group_name}.apt.csv"
+    phom_day0_vs_naga_qc_plot = "${group_name}.qc.pca_plot.html"
     """
     Rscript ${params.script}/merge_rds.r -r ${phom_day0_rds} -s ${naga_rds} -o ${group_name}
+
     Rscript -e '
     data <- readRDS("${phom_day0_vs_naga_rds}")
+    data[[1]] <- data[[1]][!grepl("QC", rownames(data[[1]])), ]
     write.csv(data[[1]], "${group_name}.ex.csv", row.names = TRUE, col.names = TRUE)
     write.csv(data[[2]], "${group_name}.apt.csv", row.names = FALSE, col.names = TRUE)
     '
+
+    Rscript ${params.script}/qc_pca_plot.r -r ${phom_day0_vs_naga_rds} -s ${adat_summary} -o ${group_name} 
     """
 }
 
-phom_day0_vs_naga_out_ch
-    .view()
+
