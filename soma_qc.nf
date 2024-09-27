@@ -99,7 +99,7 @@ process phom_day0_selection {
     tuple val(group_name), path(rds_file) from phom_day0_in_ch
 
     output:
-    tuple val(group_name), file(phom_day0_rds) into phom_day0_out_ch
+    tuple val(group_name), file(phom_day0_rds) into phom_day0_out_ch, phom_day0_uniprot_ch
     file(phom_ex_csv)
     file(phom_apt_csv)
 
@@ -160,4 +160,43 @@ process phom_day0_vs_naga {
     """
 }
 
+
+phom_day0_uniprot_ch
+    .map { item -> ['PHOMday0', item[1]] }
+    .mix(phom_day0_vs_naga_out_ch)
+    .set { seqid2uniprot_in_ch }
+
+
+process seqid2uniprot_in_ch {
+
+    tag "${group_name}"
+
+    conda '/Users/tie_zhao/miniconda3'
+    publishDir "${params.result_dir}/05.seqid2uniprot", mode: 'symlink'
+
+    input:
+    tuple val(group_name), path(seqid_rds) from seqid2uniprot_in_ch
+
+    output:
+    tuple val(group_name), file(uniprot_rds) into seqid2uniprot_out_ch
+    file(ex_uniprot_csv)
+    file(apt_uniprot_csv)
+    file(summary_uniprot_csv)
+
+    script:
+    uniprot_rds = "${group_name}.uniprot.rds"
+    ex_uniprot_csv = "${group_name}.ex.uniprot.csv"
+    apt_uniprot_csv = "${group_name}.apt.uniprot.csv"
+    summary_uniprot_csv = "${group_name}.summary.uniprot.csv"
+    """
+    Rscript ${params.script}/seqid2uniprot.r -r ${seqid_rds} -o ${group_name}
+    Rscript -e '
+    data <-readRDS("${group_name}.uniprot.rds")
+    data[[1]] <- data[[1]][!grepl("QC", rownames(data[[1]])), ]
+    write.csv(data[[1]], "${group_name}.ex.uniprot.csv", row.names = TRUE, col.names = TRUE)
+    write.csv(data[[2]], "${group_name}.apt.uniprot.csv", row.names = FALSE, col.names = TRUE)
+    write.csv(data[[3]], "${group_name}.summary.uniprot.csv", row.names = FALSE, col.names = TRUE)
+    '
+    """
+}
 
