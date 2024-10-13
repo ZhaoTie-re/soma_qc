@@ -200,3 +200,6 @@ process seqid2uniprot_in_ch {
     """
 }
 
+process test {
+    echo true
+}
