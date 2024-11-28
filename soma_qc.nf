@@ -136,7 +136,7 @@ process phom_day0_vs_naga {
     path(adat_summary) from params.adat_summary
 
     output:
-    tuple val(group_name), file(phom_day0_vs_naga_rds) into phom_day0_vs_naga_out_ch
+    tuple val(group_name), file(phom_day0_vs_naga_rds) into phom_day0_vs_naga_out_ch, apt_multi_check
     file(phom_day0_vs_naga_ex_csv)
     file(phom_day0_vs_naga_apt_csv)
     file(phom_day0_vs_naga_qc_plot)
@@ -196,6 +196,36 @@ process seqid2uniprot_in_ch {
     write.csv(data[[1]], "${group_name}.ex.uniprot.csv", row.names = TRUE, col.names = TRUE)
     write.csv(data[[2]], "${group_name}.apt.uniprot.csv", row.names = FALSE, col.names = TRUE)
     write.csv(data[[3]], "${group_name}.summary.uniprot.csv", row.names = FALSE, col.names = TRUE)
+    '
+    """
+}
+
+process multi_modal_check {
+
+    tag "${group_name}"
+
+    conda '/Users/tie_zhao/miniconda3'
+    publishDir "${params.result_dir}/06.multi_modal_check", mode: 'symlink'
+
+    input:
+    tuple val(group_name), path(merge_rds) from apt_multi_check
+
+    output:
+    tuple val(group_name), file(multi_modal_rds) into multi_modal_out_ch
+    file(ex_multi_model_csv)
+    file(apt_multi_model_csv)
+
+    script:
+    multi_modal_rds = "${group_name}.qc.multimodal.rds"
+    ex_multi_model_csv = "${group_name}.ex.multimodal.csv"
+    apt_multi_model_csv = "${group_name}.apt.multimodal.csv"
+    """
+    Rscript ${params.script}/multi_modal_check.r -r ${merge_rds} -o ${group_name} -d 0.85 -t 0.1
+    Rscript -e '
+    data <-readRDS("${group_name}.qc.multimodal.rds")
+    data[[1]] <- data[[1]][!grepl("QC", rownames(data[[1]])), ]
+    write.csv(data[[1]], "${group_name}.ex.multimodal.csv", row.names = TRUE, col.names = TRUE)
+    write.csv(data[[2]], "${group_name}.apt.multimodal.csv", row.names = FALSE, col.names = TRUE)
     '
     """
 }
