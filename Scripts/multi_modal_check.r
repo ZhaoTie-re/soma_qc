@@ -32,12 +32,13 @@ naga_ex_df <- ex_df[grep("^NAG", rownames(ex_df)), ]
 
 #---------------
 uD <- naga_ex_df
+log2_uD <- log2(uD)
 
 #---------------
 puD <- prcomp(phom_ex_df,scale=T)
 
-k <- ncol(uD)
-cuD <- uD
+k <- ncol(log2_uD)
+cuD <- log2_uD
 
 #-------------
 lk <- {} 
